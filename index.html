@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item </title>
+    <!-- CSS only -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+    <style>
+        .card { 
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .card-body {
+            padding: 2em;
+        }
+
+        .card-img-top{
+            display: inline; 
+            max-width: 15rem; 
+            height: 250px;
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <div id="list" class="p-5">
+
+        <form  style="position: fixed; top: 0; left: 0; z-index: 1000; border:2px dotted white;" class="d-inline-flex container-fluid bg-dark text-light p-3 mb-5">
+            <input class="form-control me-2" v-model="searchQuery" type="search" placeholder="Search..." aria-label="Search">
+          </form>
+
+
+        <!-- Courses Section -->
+         <div class="row mt-5">
+           
+            <div class="col-lg-3 col-md-6 col-sm-12 card-group" v-for="item in items">
+
+                 <div class="card mb-3 bg-dark text-light" >
+                    
+                        
+                        <div class="row">
+                            <div class="card-body">
+                                <h5 class="card-title" style="font-weight: bolder;">{{ item.subject }}</h5>
+                                <p class="">{{ item.description }}</p>
+                                <p><span style="font-size:large ;"
+                                        :class="item.stock > 5 ? 'text-success' : 'text-danger' ">{{ item.stock }}</span>
+                                    spaces left!</p>
+    
+                                    <button @click="addToCart(item._id)" :disabled="item.stock <= 0" class="btn btn-outline-light">Add To Cart </button>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <p class="card-text text-success" style="font-weight: bold; font-size: large;">
+                                            &pound;{{
+                                            item.price }}</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <p class="card-text" style="font-weight:bold; float:right ;">
+                                            <i class="bi bi-geo-alt"></i> <em class="">{{ item.location }}</em> 
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>    
+                </div>
+            </div>
+         </div>
+
+          <!-- Checkout Section -->
+          <div class="row mt-5">
+
+            <h1 style="text-align: center;">Check Out ({{ cartCount }})</h1>
+
+            <div class="row">
+            <form action="/createOrder" @submit.prevent="createOrder"  method="post">
+                <div class="col">
+                  <input type="text" name="name" v-model="name" class="form-control" placeholder="Full Name" aria-label="Full name">
+                </div>
+                <div class="col">
+                  <input type="number" name="phone" v-model="phone" class="form-control" placeholder="Phone Number" aria-label="Number">
+                </div>
+                <button class="btn btn-dark col" type="submit">Confirm Order</button>
+            </form>
+            </div>
+              
+         </div>
+    </div>
+
+
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+   
+
+    <!-- JavaScript Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
+        crossorigin="anonymous"></script>
+    <script>
+
+        const { createApp } = Vue
+       
+
+        createApp({
+            mounted() {
+                this.getData();
+            
+                this.cart.forEach(element => {
+                    element.quantity = 0;
+                });
+            },
+            
+            data() {
+                return {
+                    items: [],  
+                    cart:[],
+                    searchQuery:'',
+                    name:'',
+                    phone:''
+                }
+            },
+            methods: {
+                getData() {
+                    fetch("https://lessons-cw2.herokuapp.com/Lessons")
+                    .then(response => response.json())
+                    .then(data => {
+                        this.items = data;
+                        this.cart = data;
+                    });
+                },  
+                addToCart(_id){
+                    //find entire object and push to cart array
+                    let result = this.items.findIndex((obj => obj._id == _id));
+                    this.items[result].stock--; 
+
+                    //increment the quantity
+                    let cartItem = this.cart.findIndex((obj => obj._id == _id));
+                    this.cart[cartItem].quantity++;
+
+                    //remove proxy of this array
+                    console.log([...this.cart]);
+                },
+
+                //method for changing items in cart (+ or - quantity)
+                modifyCart(subject, operation){
+                    let result = this.items.findIndex((obj => obj.subject == subject));
+                    let cartItem = this.cart.findIndex((obj => obj.subject == subject));
+
+                    if(operation == "+"){
+                        //decrease stock   
+                        this.items[result].stock--; 
+
+                        //increment the quantity
+                        this.cart[cartItem].quantity++;
+                    }
+
+                    else if(operation == "-"){
+                        //decrease stock 
+                        this.items[result].stock++; 
+
+                        //increment the quantity
+                        this.cart[cartItem].quantity--;
+                    }
+                },
+                createOrder(){
+                    this.cart.forEach(element => {
+                        let quantity = element.quantity;
+                        let product_id = element._id;
+                        if(element.quantity > 0){
+                            fetch("https://lessons-cw2.herokuapp.com/createOrder",[
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({name: this.name,phone: this.phone, product_id: product_id, quantity: quantity})
+                            }
+                        ]).then(response => response.json())
+                        .then(data => {
+                            updateQuantity(product_id, quantity);
+                        });
+                    }
+                    });
+                    
+                },
+
+                updateQuantity(id,quantity){
+                    fetch("https://lessons-cw2.herokuapp.com/updateLessonQuantity",[
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({id: id, quantity: total_stock - quantity })
+                            }
+                        ])
+                }
+            },
+            computed:{
+                cartCount(){
+                    return this.cart.filter(obj => obj.quantity > 0).length;
+                },
+                
+            }
+        }).mount('#list')
+    </script>
+
+</body>
+
+</html>
